@@ -1,29 +1,49 @@
 // src/pages/admin/GestionMedecins.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container, Table, Button, Form, Modal } from 'react-bootstrap';
+import { getDoctors, createDoctor, deleteDoctor } from '../../api/doctorsApi';
 
 const GestionMedecins = () => {
-  const [doctors, setDoctors] = useState([
-    { id: 1, name: 'Dr. Koffi Mensah', specialty: 'Cardiologie', phone: '22 11 11 11', email: 'k.mensah@hospital.tg' },
-    { id: 2, name: 'Dr. Ama Adjoua', specialty: 'Pédiatrie', phone: '22 22 22 22', email: 'a.adjoua@hospital.tg' },
-  ]);
-
+  const [doctors, setDoctors] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [newDoctor, setNewDoctor] = useState({ name: '', specialty: '', phone: '', email: '' });
+  const [newDoctor, setNewDoctor] = useState({ nom: '', prenom: '', specialite: '', email: '' });
+
+  useEffect(() => {
+    loadDoctors();
+  }, []);
+
+  const loadDoctors = async () => {
+    try {
+      const data = await getDoctors();
+      setDoctors(data);
+    } catch (error) {
+      console.error('Erreur chargement des docteurs:', error);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewDoctor({ ...newDoctor, [name]: value });
   };
 
-  const handleAddDoctor = () => {
-    setDoctors([...doctors, { ...newDoctor, id: doctors.length + 1 }]);
-    setNewDoctor({ name: '', specialty: '', phone: '', email: '' });
-    setShowModal(false);
+  const handleAddDoctor = async () => {
+    try {
+      await createDoctor(newDoctor);
+      loadDoctors(); // recharge la liste
+      setShowModal(false);
+      setNewDoctor({ nom: '', prenom: '', specialite: '', email: '' });
+    } catch (error) {
+      console.error('Erreur création docteur:', error);
+    }
   };
 
-  const handleDelete = (id) => {
-    setDoctors(doctors.filter(doctor => doctor.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      await deleteDoctor(id);
+      loadDoctors();
+    } catch (error) {
+      console.error('Erreur suppression docteur:', error);
+    }
   };
 
   return (
@@ -39,24 +59,23 @@ const GestionMedecins = () => {
         <thead>
           <tr>
             <th>ID</th>
+            <th>Prénom</th>
             <th>Nom</th>
             <th>Spécialité</th>
-            <th>Téléphone</th>
             <th>Email</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {doctors.map((doctor) => (
-            <tr key={doctor.id}>
-              <td>{doctor.id}</td>
-              <td>{doctor.name}</td>
-              <td>{doctor.specialty}</td>
-              <td>{doctor.phone}</td>
-              <td>{doctor.email}</td>
+          {doctors.map((doc) => (
+            <tr key={doc.id}>
+              <td>{doc.id}</td>
+              <td>{doc.prenom}</td>
+              <td>{doc.nom}</td>
+              <td>{Array.isArray(doc.specialite) ? doc.specialite.map(s => s.nom).join(', ') : doc.specialite}</td>
+              <td>{doc.user?.email}</td>
               <td>
-                <Button variant="info" size="sm" className="me-2">Modifier</Button>
-                <Button variant="danger" size="sm" onClick={() => handleDelete(doctor.id)}>Supprimer</Button>
+                <Button variant="danger" size="sm" onClick={() => handleDelete(doc.id)}>Supprimer</Button>
               </td>
             </tr>
           ))}
@@ -70,50 +89,26 @@ const GestionMedecins = () => {
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>Nom complet</Form.Label>
-              <Form.Control
-                type="text"
-                name="name"
-                value={newDoctor.name}
-                onChange={handleInputChange}
-              />
+              <Form.Label>Nom</Form.Label>
+              <Form.Control type="text" name="nom" value={newDoctor.nom} onChange={handleInputChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Prénom</Form.Label>
+              <Form.Control type="text" name="prenom" value={newDoctor.prenom} onChange={handleInputChange} />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Spécialité</Form.Label>
-              <Form.Control
-                type="text"
-                name="specialty"
-                value={newDoctor.specialty}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Téléphone</Form.Label>
-              <Form.Control
-                type="text"
-                name="phone"
-                value={newDoctor.phone}
-                onChange={handleInputChange}
-              />
+              <Form.Control type="text" name="specialite" value={newDoctor.specialite} onChange={handleInputChange} />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>
-              <Form.Control
-                type="email"
-                name="email"
-                value={newDoctor.email}
-                onChange={handleInputChange}
-              />
+              <Form.Control type="email" name="email" value={newDoctor.email} onChange={handleInputChange} />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Annuler
-          </Button>
-          <Button variant="primary" onClick={handleAddDoctor}>
-            Enregistrer
-          </Button>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Annuler</Button>
+          <Button variant="primary" onClick={handleAddDoctor}>Enregistrer</Button>
         </Modal.Footer>
       </Modal>
     </Container>
