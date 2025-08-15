@@ -29,8 +29,13 @@ const GestionRendezVous = () => {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const route = newStatus === 'confirmé' ? 'accept' : 'refuse';
+      // Traduire les statuts frontend en statuts backend
+      const backendStatus = newStatus === 'confirmé' ? 'accepté' : 'refusé';
+      const route = backendStatus === 'accepté' ? 'accept' : 'refuse';
+
       await api.patch(`/api/docteur/${id}/${route}`);
+
+      // Mettre à jour localement avec le statut affiché (confirmé / annulé)
       setAppointments((prev) =>
         prev.map(appt => appt.id === id ? { ...appt, statut: newStatus } : appt)
       );
@@ -38,6 +43,7 @@ const GestionRendezVous = () => {
       console.error("Erreur lors de la mise à jour du statut", error);
     }
   };
+
 
   const showAppointmentDetails = (appointment) => {
     setSelectedAppointment(appointment);

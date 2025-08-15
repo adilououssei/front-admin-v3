@@ -40,12 +40,20 @@ export default function Header({ onToggleSidebar }) {
     window.location.href = '/login';
   };
 
+  // Déterminer le rôle affiché
+  const getRoleLabel = () => {
+    if (!user?.roles) return '';
+    if (user.roles.includes('ROLE_ADMIN')) return 'Administrateur';
+    if (user.roles.includes('ROLE_DOCTEUR')) return 'Docteur';
+    return '';
+  };
+
   return (
     <header className="d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
       {/* Sidebar Toggle + Logo */}
       <div className="d-flex align-items-center gap-3">
         <Button variant="light" onClick={onToggleSidebar} className="p-2">
-          <i className="bi bi-list fs-0 " style={{ fontSize: '2.5rem', color: "#0077B6" }}></i>
+          <i className="bi bi-list fs-0" style={{ fontSize: '2.5rem', color: "#0077B6" }}></i>
         </Button>
 
         <h1 className="m-0 logo d-flex align-items-center" style={{ color: "#0077B6" }}>
@@ -71,6 +79,11 @@ export default function Header({ onToggleSidebar }) {
           <Dropdown.Toggle variant="light" id="dropdown-basic" className="d-flex align-items-center">
             <i className="bi bi-person-circle me-2 fs-5"></i>
             {user?.nom || 'Utilisateur'}
+            {getRoleLabel() && (
+              <Badge bg={getRoleLabel() === 'Administrateur' ? 'primary' : 'success'} className="ms-2">
+                {getRoleLabel()}
+              </Badge>
+            )}
           </Dropdown.Toggle>
 
           <Dropdown.Menu>

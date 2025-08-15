@@ -7,7 +7,6 @@ import api from '../services/Api';
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('doctor'); // temporaire
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -26,11 +25,12 @@ const Login = ({ onLogin }) => {
       // Stockage du token
       localStorage.setItem('token', response.data.token);
 
-      // Appel du callback avec rôle
-      onLogin(role); // à remplacer plus tard par rôle détecté dynamiquement
+      // Appel API pour récupérer les infos utilisateur
+      const meResponse = await api.get('/api/me');
+      const role = meResponse.data.roles.includes('ROLE_ADMIN') ? 'admin' : 'doctor';
 
-      // Redirection
-      navigate('/');
+      onLogin(role); // on met à jour le rôle réel
+      navigate('/');  // redirection vers Dashboard
     } catch (error) {
       console.error('Login error:', error);
       setError(error.response?.data?.message || 'Identifiants incorrects');
@@ -68,19 +68,6 @@ const Login = ({ onLogin }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
-                </Form.Group>
-
-                {/* Rôle sélectionné temporairement */}
-                <Form.Group className="mb-3">
-                  <Form.Label>Rôle</Form.Label>
-                  <Form.Select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    disabled={loading}
-                  >
-                    <option value="doctor">Docteur</option>
-                    <option value="admin">Administrateur</option>
-                  </Form.Select>
                 </Form.Group>
 
                 <Button

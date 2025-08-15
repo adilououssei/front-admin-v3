@@ -14,71 +14,71 @@ const SpecialiteList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [alert, setAlert] = useState(null);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit] = useState(5); // items par page
+  const [totalPages, setTotalPages] = useState(1);
+
+  const showAlert = (variant, message) => {
+    setAlert({ variant, message });
+    setTimeout(() => setAlert(null), 3000);
+  };
+
+  const loadData = async (pageNum = 1) => {
+    setLoading(true);
+    try {
+      const response = await fetchSpecialites(pageNum, limit);
+      const withActive = response.data.map(item => ({ ...item, active: item.statut ?? false }));
+      setSpecialites(withActive);
+      setPage(response.page ?? 1);
+      setTotalPages(response.totalPages ?? 1);
+    } catch (error) {
+      console.error('Erreur chargement spécialités:', error);
+      showAlert('danger', 'Impossible de charger les spécialités');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchSpecialites();
-        // Map backend 'statut' to frontend 'active'
-        const withActive = data.map(item => ({
-          ...item,
-          active: item.statut,
-        }));
-        setSpecialites(withActive);
-      } catch (error) {
-        console.error('Erreur chargement spécialités:', error);
-        setAlert({ variant: 'danger', message: 'Impossible de charger les spécialités' });
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, []);
 
   const handleSave = async (specialiteData) => {
     try {
-      console.log('Payload envoyé:', specialiteData);
-
       const payload = {
         nom: specialiteData.nom,
         description: specialiteData.description,
-        statut: specialiteData.active, // map active vers statut
+        statut: specialiteData.active,
       };
 
       let saved;
       if (specialiteData.id) {
         saved = await updateSpecialite(specialiteData.id, payload);
+        setSpecialites(specialites.map(spec => spec.id === specialiteData.id ? { ...saved, active: saved.statut } : spec));
+        showAlert('success', 'Spécialité modifiée avec succès');
       } else {
         saved = await createSpecialite(payload);
-      }
-
-      const savedWithActive = { ...saved, active: saved.statut };
-
-      if (specialiteData.id) {
-        setSpecialites(specialites.map(spec => spec.id === specialiteData.id ? savedWithActive : spec));
-        setAlert({ variant: 'success', message: 'Spécialité modifiée avec succès' });
-      } else {
-        setSpecialites([...specialites, savedWithActive]);
-        setAlert({ variant: 'success', message: 'Spécialité ajoutée avec succès' });
+        setSpecialites([...specialites, { ...saved, active: saved.statut }]);
+        showAlert('success', 'Spécialité ajoutée avec succès');
       }
     } catch (err) {
       console.error('Erreur sauvegarde spécialité:', err);
-      setAlert({ variant: 'danger', message: 'Erreur lors de la sauvegarde' });
+      showAlert('danger', 'Erreur lors de la sauvegarde');
     }
     setShowModal(false);
-    setTimeout(() => setAlert(null), 3000);
   };
 
   const handleDelete = async () => {
     try {
       await deleteSpecialite(specialiteToDelete);
       setSpecialites(specialites.filter(spec => spec.id !== specialiteToDelete));
-      setAlert({ variant: 'info', message: 'Spécialité supprimée' });
+      showAlert('info', 'Spécialité supprimée');
     } catch (err) {
       console.error('Erreur suppression spécialité:', err);
-      setAlert({ variant: 'danger', message: 'Erreur lors de la suppression' });
+      showAlert('danger', 'Erreur lors de la suppression');
     }
     setShowDeleteModal(false);
-    setTimeout(() => setAlert(null), 3000);
   };
 
   const filteredSpecialites = specialites.filter(spec =>
@@ -90,7 +90,11 @@ const SpecialiteList = () => {
     <div className="p-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Gestion des Spécialités Médicales</h2>
-        <Button variant="primary" onClick={() => { setSelectedSpecialite(null); setShowModal(true); }}>
+        <Button
+          variant="primary"
+          onClick={() => { setSelectedSpecialite(null); setShowModal(true); }}
+          disabled={loading}
+        >
           <FiPlus className="me-2" /> Ajouter
         </Button>
       </div>
@@ -111,53 +115,54 @@ const SpecialiteList = () => {
       </Form.Group>
 
       {loading ? (
-        <div className="text-center">
-          <Spinner animation="border" />
-        </div>
+        <div className="text-center"><Spinner animation="border" /></div>
       ) : (
-        <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Description</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSpecialites.map(spec => (
-              <tr key={spec.id}>
-                <td>{spec.nom}</td>
-                <td>{spec.description}</td>
-                <td>
-                  <Badge bg={spec.active ? 'success' : 'secondary'}>
-                    {spec.active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </td>
-                <td>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    className="me-2"
-                    onClick={() => { setSelectedSpecialite(spec); setShowModal(true); }}
-                  >
-                    <FiEdit />
-                  </Button>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => { setSpecialiteToDelete(spec.id); setShowDeleteModal(true); }}
-                  >
-                    <FiTrash2 />
-                  </Button>
-                </td>
+        <>
+          <Table striped bordered hover responsive>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Description</th>
+                <th>Statut</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {filteredSpecialites.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="text-center">Aucune spécialité trouvée</td>
+                </tr>
+              ) : (
+                filteredSpecialites.map(spec => (
+                  <tr key={spec.id}>
+                    <td>{spec.nom}</td>
+                    <td>{spec.description}</td>
+                    <td><Badge bg={spec.active ? 'success' : 'secondary'}>{spec.active ? 'Active' : 'Inactive'}</Badge></td>
+                    <td>
+                      <Button variant="outline-primary" size="sm" className="me-2"
+                        onClick={() => { setSelectedSpecialite(spec); setShowModal(true); }}>
+                        <FiEdit />
+                      </Button>
+                      <Button variant="outline-danger" size="sm"
+                        onClick={() => { setSpecialiteToDelete(spec.id); setShowDeleteModal(true); }}>
+                        <FiTrash2 />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+
+          {/* Pagination */}
+          <div className="d-flex justify-content-center mt-3">
+            <Button disabled={page <= 1} className="me-2" onClick={() => loadData(page - 1)}>Précédent</Button>
+            <span className="align-self-center">Page {page} / {totalPages}</span>
+            <Button disabled={page >= totalPages} className="ms-2" onClick={() => loadData(page + 1)}>Suivant</Button>
+          </div>
+        </>
       )}
 
-      {/* Modal Form */}
       <SpecialiteForm
         show={showModal}
         onHide={() => setShowModal(false)}
@@ -165,25 +170,18 @@ const SpecialiteList = () => {
         onSave={handleSave}
       />
 
-      {/* Modal delete confirm */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Confirmer la suppression</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          Êtes-vous sûr de vouloir supprimer cette spécialité ? Cette action est irréversible.
-        </Modal.Body>
+        <Modal.Body>Êtes-vous sûr de vouloir supprimer cette spécialité ? Cette action est irréversible.</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Annuler
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Supprimer
-          </Button>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Annuler</Button>
+          <Button variant="danger" onClick={handleDelete}>Supprimer</Button>
         </Modal.Footer>
       </Modal>
     </div>
   );
 };
 
-export default SpecialiteList;
+export default SpecialiteList;                                                        
