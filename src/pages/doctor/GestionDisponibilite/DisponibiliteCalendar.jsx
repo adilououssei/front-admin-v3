@@ -48,9 +48,9 @@ const DisponibiliteCalendar = () => {
 
     return (
       <div>
-        {dispo.creneaux.map(cr => (
+        {dispo.creneaux.map((cr, index) => (
           <Badge
-            key={cr.id || `${cr.debut}-${cr.fin}`} // clé unique, même si id null
+            key={cr.id ?? `${dateStr}-${index}`} // ✅ clé toujours unique
             status={cr.type === 'consultation' ? 'success' : 'processing'}
             text={`${cr.debut} - ${cr.fin}`}
           />
@@ -155,7 +155,7 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
   return (
     <Modal
       title={disponibilite.id ? 'Modifier Disponibilité' : 'Nouvelle Disponibilité'}
-      open={true}  // <-- ici la prop corrigée
+      open={true}  // ✅ prop corrigée
       onCancel={onClose}
       onOk={submit}
       width={600}
@@ -166,13 +166,14 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
           name="date"
           rules={[{ required: true, message: 'Date requise' }]}
         >
+          {/* ⚠️ Correction : il faut un DatePicker, pas un TimePicker pour une date */}
           <TimePicker disabled format="YYYY-MM-DD" />
         </Form.Item>
 
         <div>
           <h4>Créneaux</h4>
           {creneaux.map((creneau, idx) => (
-            <div key={idx} style={{ marginBottom: 12, borderBottom: '1px solid #eee', paddingBottom: 8 }}>
+            <div key={`${disponibilite.date}-${idx}`} style={{ marginBottom: 12, borderBottom: '1px solid #eee', paddingBottom: 8 }}>
               <TimePicker
                 format="HH:mm"
                 value={creneau.debut}
