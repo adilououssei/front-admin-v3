@@ -12,6 +12,12 @@ const translateStatusForDisplay = (statut) => {
   }
 };
 
+// Nouvelle fonction pour vérifier si le bouton "Commencer" doit s'afficher
+const canStartConsultation = (statut) => {
+  const s = statut.toLowerCase();
+  return s === 'confirmé' || s === 'en_attente' || s === 'en attente';
+};
+
 const ConsultationsEnLigne = () => {
   const [consultations, setConsultations] = useState([]);
   const [selectedConsultation, setSelectedConsultation] = useState(null);
@@ -33,28 +39,25 @@ const ConsultationsEnLigne = () => {
           throw new Error(errorData.error || 'Erreur de chargement');
         }
 
-        const data = await response.json();
-        console.log("Données reçues:", data); // Debug
+        let data = await response.json();
+        if (typeof data === 'string') data = JSON.parse(data);
 
-        if (!Array.isArray(data)) throw new Error('Format de données invalide');
+        console.log("Données reçues:", data);
 
         const formattedData = data.map(c => {
           const patient = c.patient ? `${c.patient.prenom} ${c.patient.nom}` : 'Patient inconnu';
-          const dateStr = c.rendezVous?.dateConsultationAt;
-          const timeStr = c.rendezVous?.heureConsultation;
-
-          const date = dateStr ? new Date(dateStr).toLocaleDateString() : 'N/A';
-          const time = timeStr ? new Date(`1970-01-01T${timeStr}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+          const dateObj = c.dateConsul ? new Date(c.dateConsul) : null;
+          const date = dateObj ? dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+          const timeObj = c.heureConsul ? new Date(c.heureConsul) : null;
+          const time = timeObj ? timeObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
 
           return {
             id: c.id,
             patient,
             date,
             time,
-            symptoms: c.symptoms || 'Non spécifié',
-            statut: c.statut || c.rendezVous?.statut || 'inconnu',
+            statut: c.statut || 'inconnu',
             prescription: c.prescription || '',
-            rendezVousId: c.rendezVous?.id
           };
         });
 
@@ -137,15 +140,14 @@ const ConsultationsEnLigne = () => {
               <em>Aucune consultation en ligne disponible.</em>
             </ListGroup.Item>
           )}
-          {consultations.map(consultation => (
-            <ListGroup.Item key={consultation.id}>
+          {consultations.map((consultation, index) => (
+            <ListGroup.Item key={consultation.id || index}>
               <div className="d-flex justify-content-between align-items-center">
                 <div>
                   <h5 className="mb-1">{consultation.patient}</h5>
-                  <p className="mb-1">Date: {consultation.dateConsul} à {consultation.heureConsul}</p>
-                  <p className="mb-1">Symptômes: {consultation.symptoms}</p>
+                  <p className="mb-1">Date: {consultation.date} à {consultation.time}</p>
                   <Badge bg={
-                    consultation.statut === 'en_attente' ? 'warning' :
+                    consultation.statut === 'en attente' ? 'warning' :
                     consultation.statut === 'terminé' ? 'success' :
                     consultation.statut === 'confirmé' ? 'primary' :
                     'info'
@@ -153,7 +155,7 @@ const ConsultationsEnLigne = () => {
                     {translateStatusForDisplay(consultation.statut)}
                   </Badge>
                 </div>
-                {consultation.statut === 'confirmé' && (
+                {canStartConsultation(consultation.statut) && (
                   <Button variant="primary" onClick={() => handleStartConsultation(consultation)}>
                     Commencer
                   </Button>
@@ -170,8 +172,7 @@ const ConsultationsEnLigne = () => {
         </Modal.Header>
         <Modal.Body>
           <h5>Détails :</h5>
-          <p><strong>Date :</strong> {selectedConsultation?.dateConsul} à {selectedConsultation?.timeConsul}</p>
-          <p><strong>Symptômes :</strong> {selectedConsultation?.symptoms}</p>
+          <p><strong>Date :</strong> {selectedConsultation?.date} à {selectedConsultation?.time}</p>
 
           <div className="mb-4 p-3 bg-light rounded">
             <h6>Vidéoconférence</h6>
