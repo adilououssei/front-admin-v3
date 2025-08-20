@@ -1,7 +1,7 @@
 // src/api/usersApi.js
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:8000/api/users';
+const BASE_URL = 'https://myhospital.archipel-dutyfree.com/api/users';
 
 // Fonction utilitaire pour ajouter le token dans les headers
 const authHeader = () => {

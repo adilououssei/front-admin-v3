@@ -1,33 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Badge, Button, Alert, Modal, Form, TimePicker, Select } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Calendar, Badge, Button, Alert, Modal, Form, DatePicker, TimePicker, Select } from 'antd';
 import moment from 'moment';
 import 'antd/dist/reset.css';
-
-// Exemple API (à remplacer par ton vrai appel)
 import { getDisponibilites, saveDisponibilite } from '../../../api/disponibilitesApi';
 
 const DisponibiliteCalendar = () => {
   const [disponibilites, setDisponibilites] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [currentDispo, setCurrentDispo] = useState(null); // Dispo en cours de création/modification
+  const [currentDispo, setCurrentDispo] = useState(null);
   const [alert, setAlert] = useState(null);
 
-  // Récupérer les dispos au chargement
+  const docteurId = 1; // à remplacer par l'id du docteur connecté
+
   useEffect(() => {
     loadDisponibilites();
   }, []);
 
   const loadDisponibilites = async () => {
     try {
-      const data = await getDisponibilites();
-      setDisponibilites(data);
+      const data = await getDisponibilites(docteurId);
+
+      const formatted = data.map(dispo => ({
+        ...dispo,
+        creneaux: dispo.creneaux.map(cr => ({
+          ...cr,
+          debut: cr.debut ? moment(cr.debut, 'HH:mm') : null,
+          fin: cr.fin ? moment(cr.fin, 'HH:mm') : null
+        }))
+      }));
+
+      // Supprime les doublons par date
+      const uniqueDispos = Array.from(new Map(formatted.map(d => [d.date, d])).values());
+      setDisponibilites(uniqueDispos);
     } catch {
       console.error('Erreur chargement dispos');
+      setAlert({ type: 'error', message: 'Impossible de charger les disponibilités' });
+      setTimeout(() => setAlert(null), 3000);
     }
   };
 
-  // Affiche la disponibilité quand on clique sur une date
   const onDateSelect = (date) => {
     const dateStr = date.format('YYYY-MM-DD');
     const dispoExist = disponibilites.find(d => d.date === dateStr);
@@ -40,32 +51,39 @@ const DisponibiliteCalendar = () => {
     setShowModal(true);
   };
 
-  // Affichage des créneaux dans une case du calendrier
-  const dateCellRender = (date) => {
+  const cellRender = (date, info) => {
+    if (info.type !== 'date') return info.originNode;
+
     const dateStr = date.format('YYYY-MM-DD');
     const dispo = disponibilites.find(d => d.date === dateStr);
-    if (!dispo) return null;
+    if (!dispo) return info.originNode;
 
     return (
       <div>
         {dispo.creneaux.map((cr, index) => (
-          <Badge
-            key={cr.id ?? `${dateStr}-${index}`} // ✅ clé toujours unique
-            status={cr.type === 'consultation' ? 'success' : 'processing'}
-            text={`${cr.debut} - ${cr.fin}`}
-          />
+          <div key={cr.id ?? `${dateStr}-${index}-${Math.random()}`} style={{ marginBottom: 4 }}>
+            <Badge
+              status={
+                cr.type === 'consultation'
+                  ? 'success'
+                  : cr.type === 'teleconsultation'
+                  ? 'processing'
+                  : 'warning'
+              }
+              text={`${cr.debut ? cr.debut.format('HH:mm') : ''} - ${cr.fin ? cr.fin.format('HH:mm') : ''}`}
+            />
+          </div>
         ))}
       </div>
     );
   };
 
-  // Sauvegarder la dispo (depuis modal)
   const handleSave = async (updatedDispo) => {
     try {
       await saveDisponibilite(updatedDispo);
+      await loadDisponibilites(); // Recharge les disponibilités après sauvegarde
       setAlert({ type: 'success', message: 'Disponibilité sauvegardée' });
       setShowModal(false);
-      loadDisponibilites();
     } catch {
       setAlert({ type: 'error', message: 'Erreur sauvegarde' });
     }
@@ -79,11 +97,12 @@ const DisponibiliteCalendar = () => {
       {alert && <Alert message={alert.message} type={alert.type} closable onClose={() => setAlert(null)} style={{ marginBottom: 16 }} />}
 
       <Calendar
+        key={disponibilites.length} // force le re-render du calendrier
         onSelect={onDateSelect}
-        cellRender={dateCellRender}
+        cellRender={cellRender}
       />
 
-      {showModal && (
+      {showModal && currentDispo && (
         <DisponibiliteModal
           disponibilite={currentDispo}
           onClose={() => setShowModal(false)}
@@ -94,24 +113,20 @@ const DisponibiliteCalendar = () => {
   );
 };
 
-// Modal simple pour éditer date + créneaux
 const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
   const [form] = Form.useForm();
   const [creneaux, setCreneaux] = useState(disponibilite.creneaux || []);
 
-  // Pour ajouter un créneau vide dans la liste
   const addCreneau = () => {
     setCreneaux([...creneaux, { id: null, debut: null, fin: null, type: 'consultation' }]);
   };
 
-  // Pour modifier un créneau dans la liste
   const updateCreneau = (index, field, value) => {
     const newCreneaux = [...creneaux];
     newCreneaux[index][field] = value;
     setCreneaux(newCreneaux);
   };
 
-  // Supprimer un créneau
   const removeCreneau = (index) => {
     const newCreneaux = [...creneaux];
     newCreneaux.splice(index, 1);
@@ -123,7 +138,6 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
       await form.validateFields();
       const values = form.getFieldsValue();
 
-      // Formatage des créneaux en string HH:mm
       const formattedCreneaux = creneaux.map(cr => ({
         id: cr.id,
         debut: cr.debut ? cr.debut.format('HH:mm') : null,
@@ -131,7 +145,6 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
         type: cr.type,
       }));
 
-      // Préparer l'objet à envoyer
       const dataToSave = {
         ...disponibilite,
         date: values.date.format('YYYY-MM-DD'),
@@ -145,7 +158,6 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
     }
   };
 
-  // Initialiser le formulaire avec la date
   useEffect(() => {
     if (disponibilite?.date) {
       form.setFieldsValue({ date: moment(disponibilite.date) });
@@ -155,7 +167,7 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
   return (
     <Modal
       title={disponibilite.id ? 'Modifier Disponibilité' : 'Nouvelle Disponibilité'}
-      open={true}  // ✅ prop corrigée
+      open={true}
       onCancel={onClose}
       onOk={submit}
       width={600}
@@ -166,8 +178,7 @@ const DisponibiliteModal = ({ disponibilite, onClose, onSave }) => {
           name="date"
           rules={[{ required: true, message: 'Date requise' }]}
         >
-          {/* ⚠️ Correction : il faut un DatePicker, pas un TimePicker pour une date */}
-          <TimePicker disabled format="YYYY-MM-DD" />
+          <DatePicker format="YYYY-MM-DD" />
         </Form.Item>
 
         <div>
