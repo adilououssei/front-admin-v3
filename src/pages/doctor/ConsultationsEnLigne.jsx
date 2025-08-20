@@ -74,10 +74,12 @@ const ConsultationsEnLigne = () => {
   }, []);
 
   const handleStartConsultation = (consultation) => {
+    console.log("Consultation sélectionnée:", consultation); // DEBUG
     setSelectedConsultation(consultation);
     setPrescription(consultation.prescription || '');
     setShowModal(true);
   };
+
 
   const handleCompleteConsultation = async () => {
     const token = localStorage.getItem('token');
@@ -148,9 +150,9 @@ const ConsultationsEnLigne = () => {
                   <p className="mb-1">Date: {consultation.date} à {consultation.time}</p>
                   <Badge bg={
                     consultation.statut === 'en attente' ? 'warning' :
-                    consultation.statut === 'terminé' ? 'success' :
-                    consultation.statut === 'confirmé' ? 'primary' :
-                    'info'
+                      consultation.statut === 'terminé' ? 'success' :
+                        consultation.statut === 'confirmé' ? 'primary' :
+                          'info'
                   }>
                     {translateStatusForDisplay(consultation.statut)}
                   </Badge>
@@ -175,7 +177,7 @@ const ConsultationsEnLigne = () => {
           <p><strong>Date :</strong> {selectedConsultation?.date} à {selectedConsultation?.time}</p>
 
           <div className="mb-4 p-3 bg-light rounded">
-            <h6>Vidéoconférence</h6>
+            <h6>Téléconsultation</h6>
             <iframe
               src={`https://meet.jit.si/${selectedConsultation?.id}-consultation`}
               allow="camera; microphone; fullscreen; display-capture"
