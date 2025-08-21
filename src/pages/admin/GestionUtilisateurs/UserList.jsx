@@ -62,7 +62,7 @@ const UserList = () => {
 
   // Filtrer les utilisateurs selon recherche
   const filteredUsers = users.filter(user =>
-    `${user.prenom || ''} ${user.nom || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    `${user.docteur?.prenom || user.patient?.prenom || ''} ${user.docteur?.nom || user.patient?.nom || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -136,17 +136,22 @@ const UserList = () => {
               )}
               {currentUsers.map(user => (
                 <tr key={user.id}>
-                  <td>{user.prenom || ''} {user.nom || ''}</td>
+                  <td>{user.docteur ? `${user.docteur.prenom} ${user.docteur.nom}` :
+                    user.patient ? `${user.patient.prenom} ${user.patient.nom}` : '-'}</td>
                   <td>{user.email}</td>
                   <td>
                     <Badge bg={
-                      user.role === 'admin' ? 'danger' :
-                      user.role === 'doctor' ? 'info' : 'secondary'
+                      user.roles?.includes('ROLE_ADMIN') ? 'danger' :
+                        user.docteur ? 'info' :
+                          'secondary'
                     }>
-                      {user.role === 'admin' ? 'Administrateur' :
-                       user.role === 'doctor' ? 'Médecin' : 'Patient'}
+                      {user.roles?.includes('ROLE_ADMIN') ? 'Administrateur' :
+                        user.docteur ? 'Médecin' : 'Patient'}
                     </Badge>
-                    {user.specialty && ` (${user.specialty})`}
+
+                    {user.docteur?.specialites && user.docteur.specialites.length > 0 &&
+                      ` (${user.docteur.specialites.map(s => s.nom).join(', ')})`
+                    }
                   </td>
                   <td>
                     <Badge bg={user.status === 'active' ? 'success' : 'warning'}>

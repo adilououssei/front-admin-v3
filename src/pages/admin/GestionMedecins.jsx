@@ -11,7 +11,6 @@ const GestionMedecins = () => {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editDocteurId, setEditDocteurId] = useState(null);
-
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -37,6 +36,7 @@ const GestionMedecins = () => {
   const loadDocteurs = async (pageNumber = 1) => {
     try {
       const data = await getDocteurs(pageNumber);
+      console.log('Docteurs API:', data.data); // Pour vérifier la structure
       setDocteurs(data.data || []);
       setPage(data.page || pageNumber);
       setTotalPages(data.totalPages || 1);
@@ -48,14 +48,12 @@ const GestionMedecins = () => {
   const loadSpecialites = async () => {
     try {
       const response = await fetchSpecialites();
-      // Si response.data existe, prends-le, sinon fallback à tableau vide
       setSpecialites(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erreur chargement des spécialités:', error);
-      setSpecialites([]); // fallback
+      setSpecialites([]);
     }
   };
-
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -69,7 +67,7 @@ const GestionMedecins = () => {
       } else {
         await createDocteur(newDocteur);
       }
-      loadDocteurs(page); // recharge page actuelle
+      loadDocteurs(page);
       setShowModal(false);
       setIsEditing(false);
       setEditDocteurId(null);
@@ -104,7 +102,7 @@ const GestionMedecins = () => {
       email: docteur.user?.email || '',
       password: '',
       telephone: docteur.telephone || '',
-      specialiteId: docteur.specialite?.id || ''
+      specialiteId: docteur.specialites && docteur.specialites.length > 0 ? docteur.specialites[0].id : ''
     });
     setShowModal(true);
   };
@@ -136,7 +134,11 @@ const GestionMedecins = () => {
                 <td>{doc.id}</td>
                 <td>{doc.prenom}</td>
                 <td>{doc.nom}</td>
-                <td>{doc.specialite?.nom || '—'}</td>
+                <td>
+                  {doc.specialites && doc.specialites.length > 0
+                    ? doc.specialites.map(s => s.nom).join(', ')
+                    : '—'}
+                </td>
                 <td>{doc.user?.email || '—'}</td>
                 <td className="d-flex gap-2">
                   <Button variant="warning" size="sm" onClick={() => handleEdit(doc)}>
