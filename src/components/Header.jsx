@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/Api';
 import { Modal, Button, Badge, Dropdown } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 
 export default function Header({ onToggleSidebar }) {
   const [notifications, setNotifications] = useState([]);
@@ -57,8 +58,10 @@ export default function Header({ onToggleSidebar }) {
         </Button>
 
         <h1 className="m-0 logo d-flex align-items-center" style={{ color: "#0077B6" }}>
-          <i className="bi bi-h-square me-3" style={{ fontSize: '2.5rem', color: "#0077B6" }}></i>
-          MyHospital
+          <Link to="/" style={{ textDecoration: 'none', color: "#0077B6" }} className="d-flex align-items-center">
+            <i className="bi bi-h-square me-3" style={{ fontSize: '2.5rem', color: "#0077B6" }}></i>
+            MyHospital
+          </Link>
         </h1>
       </div>
 
