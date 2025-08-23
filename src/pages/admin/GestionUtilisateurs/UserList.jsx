@@ -1,7 +1,6 @@
-// src/components/admin/users/UserList.jsx
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Badge, Form, InputGroup, Pagination, Spinner, Alert } from 'react-bootstrap';
-import { FiEdit, FiTrash2, FiPlus, FiSearch } from 'react-icons/fi';
+import { Table, Button, Badge, Spinner, Alert, Pagination } from 'react-bootstrap';
+import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import UserForm from './UserForm';
 import { fetchUsers, createUser, updateUser, deleteUser } from '../../../api/usersApi';
 
@@ -11,12 +10,13 @@ const UserList = () => {
   const [alert, setAlert] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 5;
+  const usersPerPage = 10;
 
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       try {
         const data = await fetchUsers();
         setUsers(data);
@@ -26,14 +26,14 @@ const UserList = () => {
         setLoading(false);
       }
     };
-    loadUsers();
+    loadData();
   }, []);
 
   const handleSave = async (userData) => {
     try {
       if (userData.id) {
         await updateUser(userData.id, userData);
-        setUsers(users.map(u => u.id === userData.id ? userData : u));
+        setUsers(users.map(u => u.id === userData.id ? { ...u, ...userData } : u));
         setAlert({ variant: 'success', message: 'Utilisateur mis à jour' });
       } else {
         const newUser = await createUser(userData);
@@ -48,7 +48,7 @@ const UserList = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Confirmer la suppression de cet utilisateur ?')) {
+    if (window.confirm('Confirmer la suppression ?')) {
       try {
         await deleteUser(id);
         setUsers(users.filter(u => u.id !== id));
@@ -60,18 +60,6 @@ const UserList = () => {
     }
   };
 
-  // Filtrer les utilisateurs selon recherche
-  const filteredUsers = users.filter(user =>
-    `${user.docteur?.prenom || user.patient?.prenom || ''} ${user.docteur?.nom || user.patient?.nom || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Pagination
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-
   const handleEdit = (user) => {
     setSelectedUser(user);
     setShowModal(true);
@@ -82,119 +70,81 @@ const UserList = () => {
     setShowModal(true);
   };
 
+  // Pagination helpers
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = users.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(users.length / usersPerPage);
+
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  if (loading) return <Spinner animation="border" />;
+
   return (
     <div className="p-4">
       <div className="d-flex justify-content-between mb-4 align-items-center">
-        <h2>Gestion des Utilisateurs</h2>
+        <h2>Gestion des utilisateurs</h2>
         <Button variant="primary" onClick={handleAddUser}>
-          <FiPlus className="me-2" />
-          Ajouter un utilisateur
+          <FiPlus className="me-2" /> Ajouter
         </Button>
       </div>
 
-      {alert && (
-        <Alert variant={alert.variant} onClose={() => setAlert(null)} dismissible>
-          {alert.message}
-        </Alert>
-      )}
+      {alert && <Alert variant={alert.variant}>{alert.message}</Alert>}
 
-      <div className="mb-4" style={{ maxWidth: '400px' }}>
-        <InputGroup>
-          <Form.Control
-            placeholder="Rechercher un utilisateur..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-          <InputGroup.Text>
-            <FiSearch />
-          </InputGroup.Text>
-        </InputGroup>
-      </div>
+      <Table striped bordered hover responsive>
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Téléphone</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentUsers.length === 0 && <tr><td colSpan="5" className="text-center">Aucun utilisateur</td></tr>}
+          {currentUsers.map(user => (
+            <tr key={user.id}>
+              <td>{user.prenom} {user.nom}</td>
+              <td>{user.email}</td>
+              <td>
+                <Badge bg={
+                  user.roles?.includes('ROLE_ADMIN') ? 'danger' :
+                  user.roles?.includes('ROLE_DOCTEUR') ? 'info' :
+                  'secondary'
+                }>
+                  {user.roles?.includes('ROLE_ADMIN') ? 'Administrateur' :
+                   user.roles?.includes('ROLE_DOCTEUR') ? 'Médecin' :
+                   'Patient'}
+                </Badge>
+              </td>
+              <td>{user.telephone || '-'}</td>
+              <td>
+                <Button variant="outline-primary" size="sm" onClick={() => handleEdit(user)} className="me-2">
+                  <FiEdit />
+                </Button>
+                <Button variant="outline-danger" size="sm" onClick={() => handleDelete(user.id)}>
+                  <FiTrash2 />
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
 
-      {loading ? (
-        <div className="text-center my-5">
-          <Spinner animation="border" />
-        </div>
-      ) : (
-        <>
-          <Table striped bordered hover responsive>
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th>Statut</th>
-                <th>Dernière connexion</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentUsers.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center">Aucun utilisateur trouvé</td>
-                </tr>
-              )}
-              {currentUsers.map(user => (
-                <tr key={user.id}>
-                  <td>{user.docteur ? `${user.docteur.prenom} ${user.docteur.nom}` :
-                    user.patient ? `${user.patient.prenom} ${user.patient.nom}` : '-'}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    <Badge bg={
-                      user.roles?.includes('ROLE_ADMIN') ? 'danger' :
-                        user.docteur ? 'info' :
-                          'secondary'
-                    }>
-                      {user.roles?.includes('ROLE_ADMIN') ? 'Administrateur' :
-                        user.docteur ? 'Médecin' : 'Patient'}
-                    </Badge>
-
-                    {user.docteur?.specialites && user.docteur.specialites.length > 0 &&
-                      ` (${user.docteur.specialites.map(s => s.nom).join(', ')})`
-                    }
-                  </td>
-                  <td>
-                    <Badge bg={user.status === 'active' ? 'success' : 'warning'}>
-                      {user.status === 'active' ? 'Actif' : 'Inactif'}
-                    </Badge>
-                  </td>
-                  <td>{user.lastLogin || '-'}</td>
-                  <td>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => handleEdit(user)}
-                    >
-                      <FiEdit />
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleDelete(user.id)}
-                    >
-                      <FiTrash2 />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-
-          {filteredUsers.length > usersPerPage && (
-            <Pagination>
-              {Array.from({ length: totalPages }).map((_, idx) => (
-                <Pagination.Item
-                  key={idx + 1}
-                  active={idx + 1 === currentPage}
-                  onClick={() => setCurrentPage(idx + 1)}
-                >
-                  {idx + 1}
-                </Pagination.Item>
-              ))}
-            </Pagination>
-          )}
-        </>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination>
+          {[...Array(totalPages)].map((_, idx) => (
+            <Pagination.Item
+              key={idx + 1}
+              active={currentPage === idx + 1}
+              onClick={() => handlePageChange(idx + 1)}
+            >
+              {idx + 1}
+            </Pagination.Item>
+          ))}
+        </Pagination>
       )}
 
       <UserForm

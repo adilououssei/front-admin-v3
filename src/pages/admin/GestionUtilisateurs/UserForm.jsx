@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col } from 'react-bootstrap';
 
 const UserForm = ({ show, onHide, user, onSave }) => {
   const [formData, setFormData] = useState({
@@ -7,21 +7,20 @@ const UserForm = ({ show, onHide, user, onSave }) => {
     prenom: '',
     email: '',
     role: 'patient',
-    specialty: '',
-    status: 'active'
+    specialties: [],
+    telephone: '',
   });
-
-  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (user) {
       setFormData({
-        nom: user.nom || '',
-        prenom: user.prenom || '',
+        nom: user.docteur?.prenom || user.patient?.prenom || '',
+        prenom: user.docteur?.nom || user.patient?.nom || '',
         email: user.email || '',
-        role: user.role || 'patient',
-        specialty: user.specialty || '',
-        status: user.status || 'active'
+        role: user.roles?.includes('ROLE_DOCTOR') ? 'doctor' :
+              user.roles?.includes('ROLE_PATIENT') ? 'patient' : 'admin',
+        specialties: user.docteur?.specialites?.map(s => s.id) || [],
+        telephone: user.docteur?.telephone || user.patient?.telephone || '',
       });
     } else {
       setFormData({
@@ -29,44 +28,20 @@ const UserForm = ({ show, onHide, user, onSave }) => {
         prenom: '',
         email: '',
         role: 'patient',
-        specialty: '',
-        status: 'active'
+        specialties: [],
+        telephone: '',
       });
     }
   }, [user]);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.nom) newErrors.nom = 'Nom requis';
-    if (!formData.prenom) newErrors.prenom = 'Prénom requis';
-    if (!formData.email) {
-      newErrors.email = 'Email requis';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email invalide';
-    }
-    if (formData.role === 'doctor' && !formData.specialty) {
-      newErrors.specialty = 'Spécialité requise';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = e => {
     e.preventDefault();
-    if (validate()) {
-      onSave({
-        ...formData,
-        id: user?.id
-      });
-    }
+    onSave({ ...formData, id: user?.id });
   };
 
   return (
@@ -81,28 +56,20 @@ const UserForm = ({ show, onHide, user, onSave }) => {
               <Form.Group className="mb-3">
                 <Form.Label>Prénom</Form.Label>
                 <Form.Control
-                  name="prenom"
-                  value={formData.prenom}
+                  name="nom"
+                  value={formData.nom}
                   onChange={handleChange}
-                  isInvalid={!!errors.prenom}
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.prenom}
-                </Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Nom</Form.Label>
                 <Form.Control
-                  name="nom"
-                  value={formData.nom}
+                  name="prenom"
+                  value={formData.prenom}
                   onChange={handleChange}
-                  isInvalid={!!errors.nom}
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.nom}
-                </Form.Control.Feedback>
               </Form.Group>
             </Col>
           </Row>
@@ -114,77 +81,49 @@ const UserForm = ({ show, onHide, user, onSave }) => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              isInvalid={!!errors.email}
             />
-            <Form.Control.Feedback type="invalid">
-              {errors.email}
-            </Form.Control.Feedback>
           </Form.Group>
-
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Rôle</Form.Label>
-                <Form.Select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleChange}
-                >
-                  <option value="patient">Patient</option>
-                  <option value="doctor">Médecin</option>
-                  <option value="admin">Administrateur</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              {formData.role === 'doctor' && (
-                <Form.Group className="mb-3">
-                  <Form.Label>Spécialité</Form.Label>
-                  <Form.Control
-                    name="specialty"
-                    value={formData.specialty}
-                    onChange={handleChange}
-                    isInvalid={!!errors.specialty}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.specialty}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              )}
-            </Col>
-          </Row>
 
           <Form.Group className="mb-3">
-            <Form.Label>Statut</Form.Label>
-            <div>
-              <Form.Check
-                inline
-                type="radio"
-                label="Actif"
-                name="status"
-                value="active"
-                checked={formData.status === 'active'}
-                onChange={handleChange}
-              />
-              <Form.Check
-                inline
-                type="radio"
-                label="Inactif"
-                name="status"
-                value="inactive"
-                checked={formData.status === 'inactive'}
-                onChange={handleChange}
-              />
-            </div>
+            <Form.Label>Rôle</Form.Label>
+            <Form.Select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+            >
+              <option value="patient">Patient</option>
+              <option value="doctor">Médecin</option>
+              <option value="admin">Administrateur</option>
+            </Form.Select>
           </Form.Group>
+
+          {formData.role === 'doctor' && (
+            <>
+              <Form.Group className="mb-3">
+                <Form.Label>Téléphone</Form.Label>
+                <Form.Control
+                  name="telephone"
+                  value={formData.telephone}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Spécialités</Form.Label>
+                <Form.Control
+                  name="specialties"
+                  value={formData.specialties}
+                  onChange={handleChange}
+                  placeholder="IDs des spécialités séparés par des virgules"
+                />
+              </Form.Group>
+            </>
+          )}
+
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>
-            Annuler
-          </Button>
-          <Button variant="primary" type="submit">
-            Enregistrer
-          </Button>
+          <Button variant="secondary" onClick={onHide}>Annuler</Button>
+          <Button variant="primary" type="submit">Enregistrer</Button>
         </Modal.Footer>
       </Form>
     </Modal>

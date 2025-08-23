@@ -30,7 +30,7 @@ const ConsultationsEnLigne = () => {
     const fetchConsultations = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('https://myhospital.archipel-dutyfree.com/api/consultations/online', {
+        const response = await fetch('http://localhost:8000/api/consultations/online', {
           headers: { 'Authorization': `Bearer ${token}` },
         });
 
@@ -45,7 +45,7 @@ const ConsultationsEnLigne = () => {
         console.log("Données reçues:", data);
 
         const formattedData = data.map(c => {
-          const patient = c.patient ? `${c.patient.prenom} ${c.patient.nom}` : 'Patient inconnu';
+          const patient = c.patientNomComplet || 'Patient inconnu';
           const dateObj = c.dateConsul ? new Date(c.dateConsul) : null;
           const date = dateObj ? dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
           const timeObj = c.heureConsul ? new Date(c.heureConsul) : null;
@@ -74,7 +74,6 @@ const ConsultationsEnLigne = () => {
   }, []);
 
   const handleStartConsultation = (consultation) => {
-    console.log("Consultation sélectionnée:", consultation); // DEBUG
     setSelectedConsultation(consultation);
     setPrescription(consultation.prescription || '');
     setShowModal(true);
@@ -86,7 +85,7 @@ const ConsultationsEnLigne = () => {
     if (!token || !selectedConsultation) return;
 
     try {
-      const res = await fetch(`https://myhospital.archipel-dutyfree.com/api/consultations/${selectedConsultation.id}/complete`, {
+      const res = await fetch(`http://localhost:8000/api/consultations/${selectedConsultation.id}/complete`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
