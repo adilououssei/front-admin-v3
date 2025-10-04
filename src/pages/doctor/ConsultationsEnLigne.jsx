@@ -85,7 +85,7 @@ const ConsultationsEnLigne = () => {
     if (!token || !selectedConsultation) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api/consultations/${selectedConsultation.id}/complete`, {
+      const res = await fetch(`https://myhospital.archipel-dutyfree.com/api/consultations/${selectedConsultation.id}/complete`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
